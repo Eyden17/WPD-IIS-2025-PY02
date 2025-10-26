@@ -1,13 +1,10 @@
 import express from "express";
 import { login } from "../controller/authController.js";
-import { apiKeyMiddleware } from "../middleware/apiKeyMiddleware.js";
+import { apiKeyAuth } from "../middleware/apiKeyAuth.js";
 
 const router = express.Router();
 
-/**
- * POST /auth/login
- * Recibe un username y un role, devuelve un token JWT válido.
- */
-router.post("/login", apiKeyMiddleware, login);
+// Ruta: POST /api/v1/auth/login
+router.post("/login", apiKeyAuth, login);
 
 export default router;

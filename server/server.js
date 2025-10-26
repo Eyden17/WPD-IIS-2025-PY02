@@ -1,30 +1,20 @@
 import express from "express";
-import cors from "cors";
 import dotenv from "dotenv";
-
-import productRoutes from "./routes/productRoutes.js";
-import authRoutes from "./routes/authRoutes.js";
-
-import { errorHandler } from "./middleware/errorMiddleware.js";
-
-// Cargar variables de entorno
-dotenv.config();
-
-// Configuración del servidor
+import authRoutes from './routes/authRoutes.js';
+import userRoutes from './routes/userRoutes.js';
+dotenv.config(); 
 const app = express();
-app.use(cors());
 app.use(express.json());
 
-// Rutas
-app.use("/products", productRoutes);
-app.use("/auth", authRoutes);
 
-// Middleware para manejo de errores
-app.use(errorHandler);
 
-const PORT = process.env.PORT || 3000;
+// Prefijo base versionado
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/users', userRoutes);
 
-// Iniciar el servidor
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+
+app.listen(process.env.PORT || 3000, () => {
+  console.log(`Servidor corriendo en puerto ${process.env.PORT || 3000}`);
 });
+
+export default app;
