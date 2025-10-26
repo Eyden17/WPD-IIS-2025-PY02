@@ -1,7 +1,7 @@
 
-import jwt from "jsonwebtoken";
+import jwt from 'jsonwebtoken';
 
-const SECRET = process.env.JWT_SECRET || "mi_clave_jwt";
+const SECRET = process.env.JWT_SECRET;
 
 // Middleware de autenticación (valida el token JWT)
 export const authMiddleware = (req, res, next) => {
