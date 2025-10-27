@@ -84,7 +84,6 @@ console.log("📋 Resultado búsqueda rol:", rol, "=>", rolData, rolError);
 
 
 
-
 // ====================== CONTROLADOR LOGIN ============================================
 
 
