@@ -49,7 +49,7 @@ if (!tipoData || tipoData.length === 0) {
   .select("id, nombre")
   .ilike("nombre", rol);
 
-console.log("📋 Resultado búsqueda rol:", rol, "=>", rolData, rolError);
+console.log("Resultado búsqueda rol:", rol, "=>", rolData, rolError);
     if (rolError || !rolData || rolData.length === 0) {
   return res.status(400).json({ message: "Rol no válido" });
 }
