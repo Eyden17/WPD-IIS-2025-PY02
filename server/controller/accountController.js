@@ -252,3 +252,68 @@ export const updateAccountStatus = async (req, res) => {
     return res.status(500).json({ message: "Error interno del servidor" });
   }
 };
+
+
+/**
+ * Lista los movimientos de una cuenta
+ * GET /api/v1/accounts/:iban/movements
+ */
+export const getAccountMovements = async (req, res) => {
+  try {
+    const { iban } = req.params;
+    const { from_date, to_date, page = 1, page_size = 10, q, type } = req.query;
+
+    // 1.Usuario autenticado (obligatorio)
+    const usuarioUUID = req.user?.id;
+    if (!usuarioUUID) {
+      return res.status(401).json({ message: "Usuario no autenticado." });
+    }
+
+    // 2.Busca el ID de la cuenta a partir del IBAN
+    const { data: cuentaData, error: cuentaError } = await supabase
+      .from("cuenta")
+      .select("id, usuario_id")
+      .ilike("iban", iban)
+      .limit(1)
+      .single();
+
+    if (cuentaError || !cuentaData) {
+      return res.status(404).json({ message: "Cuenta no encontrada con el IBAN proporcionado." });
+    }
+
+    // Valida que la cuenta pertenezca al usuario autenticado
+    if (cuentaData.usuario_id !== usuarioUUID) {
+      return res.status(403).json({ message: "No tienes permiso para acceder a esta cuenta." });
+    }
+
+    const cuentaUUID = cuentaData.id;
+
+    // 3.Llama al Stored Procedure
+    const { data, error } = await supabase.rpc("sp_account_movements_list", {
+      p_account_id: cuentaUUID,
+      p_from_date: from_date || null,
+      p_to_date: to_date || null,
+      p_page: parseInt(page),
+      p_page_size: parseInt(page_size),
+      p_q: q || null,
+      p_type: type || null,
+    });
+
+    if (error) {
+      console.error("Error al obtener movimientos:", error);
+      return res.status(500).json({
+        message: "Error al obtener movimientos de la cuenta",
+        details: error.message,
+      });
+    }
+
+    // 4.Respuesta exitosa
+    return res.status(200).json({
+      message: "Movimientos obtenidos correctamente",
+      data,
+    });
+  } catch (err) {
+    console.error("Error en getAccountMovements:", err);
+    return res.status(500).json({ message: "Error interno del servidor" });
+  }
+};

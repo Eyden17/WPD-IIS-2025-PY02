@@ -1,6 +1,6 @@
 // routes/accountRoute.js
 import express from "express";
-import {createAccount, getAccount, updateAccountStatus  } from "../controller/accountController.js";
+import {createAccount, getAccount, updateAccountStatus, getAccountMovements  } from "../controller/accountController.js";
 import { authMiddleware, roleMiddleware } from "../middleware/authMiddleware.js";
 
 
@@ -41,5 +41,11 @@ router.put(
      updateAccountStatus
     );
 
+// Obtiene los movimientos de una cuenta (por IBAN)
+router.get(
+  "/:iban/movements",
+  authMiddleware,
+  getAccountMovements
+);
 
 export default router;
