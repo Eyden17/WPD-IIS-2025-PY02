@@ -1,6 +1,6 @@
 import express from "express";
 import { authMiddleware, roleMiddleware } from "../middleware/authMiddleware.js";
-import { updateUser,deleteUser, getCurrentUser} from "../controller/userController.js"; 
+import { updateUser,deleteUser} from "../controller/userController.js"; 
 
 const router = express.Router();
 
@@ -31,14 +31,5 @@ router.put(
   roleMiddleware(["admin"]), // solo admins pueden Actualizar
   updateUser// función del controlador
 );
-
-// Obtener usuario actual autenticado
-router.get(
-  "/me",
-  authMiddleware,
-  roleMiddleware(["admin"]),
-  getCurrentUser
-);
-
 
 export default router;

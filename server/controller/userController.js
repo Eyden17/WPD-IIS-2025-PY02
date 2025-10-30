@@ -3,40 +3,7 @@
 import { supabase } from "../config/supabase.js";
 
 
-// ====================== CONTROLADOR GET CURRENT USER ============================================
-export const getCurrentUser = async (req, res) => {
-  try {
-    // 1.Usuario autenticado
-    const usuarioUUID = req.user?.id;
-    if (!usuarioUUID) {
-      return res.status(401).json({ message: "Usuario no autenticado." });
-    }
 
-    // 2.Llama al procedimiento almacenado con el ID del usuario
-    const { data, error } = await supabase.rpc("current_usuario_id", {
-      p_user_id: usuarioUUID,
-    });
-
-    if (error) {
-      console.error("Error al obtener usuario actual:", error);
-      return res.status(500).json({ message: "Error al obtener usuario actual" });
-    }
-
-    if (!data || data.length === 0) {
-      return res.status(404).json({ message: "Usuario no encontrado." });
-    }
-
-    // 3.Respuesta exitosa
-    return res.status(200).json({
-      message: "Usuario obtenido correctamente",
-      data: data[0], // devuelves el primer (y único) registro
-    });
-
-  } catch (err) {
-    console.error("Error en getCurrentUser:", err);
-    return res.status(500).json({ message: "Error interno del servidor" });
-  }
-};
 
 // ====================== CONTROLADOR DELETE USER ============================================
 export const deleteUser = async (req, res) => {
