@@ -1,1 +1,201 @@
 
+-- =========================================================
+--  EXTENSIONES
+-- =========================================================
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- =========================================================
+--  TABLAS
+-- =========================================================
+
+-- TIPOS
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'otp_proposito') THEN
+    CREATE TYPE public.otp_proposito AS ENUM ('password_reset', 'card_details');
+  END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS public.tipo_movimiento_cuenta (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  nombre      TEXT NOT NULL UNIQUE,
+  descripcion TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.tipo_tarjeta (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  nombre      TEXT NOT NULL UNIQUE,
+  descripcion TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.tipo_movimiento_tarjeta (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  nombre TEXT NOT NULL UNIQUE,
+  descripcion TEXT
+);
+
+CREATE TABLE IF NOT EXISTS public.movimiento_cuenta (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  cuenta_id       UUID NOT NULL REFERENCES public.cuenta(id) ON DELETE CASCADE,
+  fecha           TIMESTAMPTZ NOT NULL DEFAULT now(),
+  tipo            UUID NOT NULL REFERENCES public.tipo_movimiento_cuenta(id),
+  descripcion     TEXT,
+  moneda          UUID NOT NULL REFERENCES public.moneda(id),
+  monto           NUMERIC(18,2) NOT NULL CHECK (monto >= 0),
+  fecha_creacion  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.tarjeta (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  usuario_id          UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE RESTRICT,
+  tipo                UUID NOT NULL REFERENCES public.tipo_tarjeta(id),
+  numero_enmascarado  TEXT NOT NULL,
+  fecha_expiracion    TEXT NOT NULL,
+  cvv_hash            TEXT NOT NULL,
+  pin_hash            TEXT NOT NULL,
+  moneda              UUID NOT NULL REFERENCES public.moneda(id),
+  limite_credito      NUMERIC(18,2) NOT NULL DEFAULT 0 CHECK (limite_credito >= 0),
+  saldo_actual        NUMERIC(18,2) NOT NULL DEFAULT 0,
+  fecha_creacion      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  fecha_actualizacion TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT chk_num_enmascarado_format CHECK (numero_enmascarado ~ '^[0-9]{4} \*{4} \*{4} [0-9]{4}$'),
+  CONSTRAINT chk_exp_mm_yy CHECK (fecha_expiracion ~ '^(0[1-9]|1[0-2])/[0-9]{2}$')
+);
+
+CREATE TABLE IF NOT EXISTS public.movimiento_tarjeta (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tarjeta_id UUID NOT NULL REFERENCES public.tarjeta(id) ON DELETE CASCADE,
+  fecha TIMESTAMPTZ NOT NULL DEFAULT now(),
+  tipo UUID NOT NULL REFERENCES public.tipo_movimiento_tarjeta(id),
+  descripcion TEXT,
+  moneda UUID NOT NULL REFERENCES public.moneda(id),
+  monto NUMERIC(18,2) NOT NULL CHECK (monto >= 0),
+  fecha_creacion TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.otps (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  usuario_id        UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
+  codigo_hash       TEXT NOT NULL,
+  proposito         public.otp_proposito NOT NULL,
+  fecha_expiracion  TIMESTAMPTZ NOT NULL,
+  fecha_consumido   TIMESTAMPTZ NULL,
+  fecha_creacion    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT chk_exp_future CHECK (fecha_expiracion > now())
+);
+
+CREATE TABLE IF NOT EXISTS public.api_key (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  clave_hash      TEXT NOT NULL,
+  etiqueta        TEXT,
+  activa          BOOLEAN NOT NULL DEFAULT TRUE,
+  fecha_creacion  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.auditoria (
+  id            INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  usuario_id    UUID REFERENCES public.usuarios(id) ON DELETE SET NULL,
+  accion        TEXT NOT NULL,
+  detalles      JSONB,
+  fecha         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- =========================================================
+--  INDICES
+-- =========================================================
+CREATE INDEX IF NOT EXISTS idx_mov_cta_ctaid ON public.movimiento_cuenta (cuenta_id);
+CREATE INDEX IF NOT EXISTS idx_mov_cta_fecha ON public.movimiento_cuenta (fecha DESC);
+
+CREATE INDEX IF NOT EXISTS idx_tarjeta_usuario ON public.tarjeta (usuario_id);
+CREATE INDEX IF NOT EXISTS idx_tarjeta_tipo ON public.tarjeta (tipo);
+CREATE INDEX IF NOT EXISTS idx_tarjeta_moneda ON public.tarjeta (moneda);
+
+CREATE INDEX IF NOT EXISTS idx_mov_tarjeta_tid ON public.movimiento_tarjeta (tarjeta_id);
+CREATE INDEX IF NOT EXISTS idx_mov_tarjeta_fecha ON public.movimiento_tarjeta (fecha DESC);
+
+CREATE INDEX IF NOT EXISTS idx_otps_usuario ON public.otps (usuario_id);
+CREATE INDEX IF NOT EXISTS idx_otps_proposito ON public.otps (proposito);
+CREATE INDEX IF NOT EXISTS idx_otps_exp ON public.otps (fecha_expiracion);
+
+CREATE INDEX IF NOT EXISTS idx_apikey_activa ON public.api_key (activa);
+
+CREATE INDEX IF NOT EXISTS idx_audit_usuario ON public.auditoria (usuario_id);
+CREATE INDEX IF NOT EXISTS idx_audit_fecha ON public.auditoria (fecha DESC);
+
+-- =========================================================
+--  DATOS INICIALES
+-- =========================================================
+INSERT INTO public.tipo_movimiento_cuenta (nombre, descripcion) VALUES
+  ('Crédito', 'Abono a la cuenta'),
+  ('Débito',  'Cargo o retiro de la cuenta')
+ON CONFLICT (nombre) DO NOTHING;
+
+INSERT INTO public.tipo_tarjeta (nombre, descripcion) VALUES
+  ('Crédito', 'Tarjeta de crédito'),
+  ('Débito',  'Tarjeta de débito')
+ON CONFLICT (nombre) DO NOTHING;
+
+INSERT INTO public.tipo_movimiento_tarjeta (nombre, descripcion) VALUES
+  ('Compra', 'Consumo con la tarjeta'),
+  ('Pago',   'Pago o abono a la tarjeta')
+ON CONFLICT (nombre) DO NOTHING;
+
+-- =========================================================
+--  FUNCIONES Y PROCEDIMIENTOS
+-- =========================================================
+
+-- Helpers
+CREATE OR REPLACE FUNCTION PUBLIC.raise_if(cond BOOLEAN, msg TEXT)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF cond THEN
+    RAISE EXCEPTION '%', msg;
+  END IF;
+END;
+$$;
+
+-- [Aquí irían todas las funciones SP de tu código original: sp_auth_user_get_by_username_or_email, sp_api_key_is_active, sp_otp_create, sp_otp_consume, sp_users_create, sp_users_get_by_identification, sp_users_update, sp_users_delete, sp_accounts_create, sp_accounts_get, sp_accounts_set_status, sp_account_movements_list, sp_cards_create, sp_cards_get, sp_card_movements_list, sp_card_movement_add, sp_transfer_create_internal, sp_bank_validate_account, auditoría y triggers]
+
+-- Funciones de sistema
+CREATE OR REPLACE FUNCTION public.set_fecha_actualizacion()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  new.fecha_actualizacion := now();
+  RETURN new;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.usuarios u
+    JOIN public.rol r ON r.id = u.rol
+    WHERE u.auth_user_id = auth.uid()
+      AND LOWER(r.nombre) = 'admin'
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.current_usuario_id()
+RETURNS UUID
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT u.id
+  FROM public.usuarios u
+  WHERE u.auth_user_id = auth.uid()
+  LIMIT 1;
+$$;
+
+-- Triggers de actualización automática
+DROP TRIGGER IF EXISTS tg_set_fecha_actualizacion_tarjeta ON public.tarjeta;
+CREATE TRIGGER tg_set_fecha_actualizacion_tarjeta
+BEFORE UPDATE ON public.tarjeta
+FOR EACH ROW EXECUTE FUNCTION public.set_fecha_actualizacion();
