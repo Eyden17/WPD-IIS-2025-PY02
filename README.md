@@ -44,9 +44,13 @@ Agregar scripts en package.json:
 ### Configurar variables de entorno
 
 SUPABASE_URL=https://vpdhqgfzxhkfbaosrgpt.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc...
+
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwZGhxZ2Z6eGhrZmJhb3NyZ3B0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MTIxOTM2OCwiZXhwIjoyMDc2Nzk1MzY4fQ.vY7LuQKhmoqG07tidj1FMRrtCGa1pkRydPuJv1vKlCw
+
 API_KEY=9f8d7b6c5a4e3b2f1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b
+
 JWT_SECRET=OxyJSc8eiDgW83463ufKoOxqvl01mJNCIQ5EG7ZtICt4SltAuid0kSRzqZJdaB8LasjcLIvPHPYq9
+
 PORT=3000
 
 ### Crear cliente de Supabase
