@@ -212,7 +212,7 @@ export const updateAccountStatus = async (req, res) => {
     if (missingFields.length > 0) {
       return res.status(200).json({
         status: 200,
-        message: `Faltan los siguientes parámetros en el body: ${missingFields.join(
+        message: `Faltan los siguientes parámetros: ${missingFields.join(
           ", "
         )}`,
       });
