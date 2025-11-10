@@ -1,19 +1,14 @@
 import express from "express";
 import { authMiddleware, roleMiddleware } from "../middleware/authMiddleware.js";
-import { updateUser,deleteUser} from "../controller/userController.js"; 
+import { updateUser,deleteUser, getUserByIdentificacion } from "../controller/userController.js"; 
 
 const router = express.Router();
-
+// Ruta GET 
 router.get(
-  '/', 
-  authMiddleware, // Verifica el JWT
-  roleMiddleware(['admin', 'cliente']), // Verifica roles permitidos
-  (req, res) => {
-    res.json({
-      message: `Bienvenido ${req.user.username}`,
-      role: req.user.role,
-    });
-  }
+  '/:identificacion',
+  authMiddleware,
+  roleMiddleware(['admin', 'cliente']),
+  getUserByIdentificacion
 );
 
 // Ruta DELETE (solo para administradores)

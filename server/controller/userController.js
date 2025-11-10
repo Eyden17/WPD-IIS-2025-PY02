@@ -3,15 +3,78 @@
 import { supabase } from "../config/supabase.js";
 
 
+// ====================== CONTROLADOR usuario por identificación ============================================
 
+export const getUserByIdentificacion = async (req, res) => {
+  try {
+    const { identificacion } = req.params;
+    const userRole = req.user.role;
+    const userIdentificacion = req.user.identificacion;
 
+    // Validamos parámetros vacíos o formato incorrecto
+    if (!identificacion || identificacion.trim() === '') {
+      return res.status(200).json({
+        status: 200,
+        message: 'Debe proporcionar una identificación válida.',
+      });
+    }
+
+    // Si es cliente, solo puede consultar su propio registro
+    if (userRole === 'cliente' && userIdentificacion !== identificacion) {
+      return res.status(200).json({
+        status: 200,
+        message: 'No tienes permiso para consultar los datos de otro usuario.',
+      });
+    }
+
+    // Consulta los datos del usuario en la tabla 'usuarios'
+    const { data, error } = await supabase
+      .from('usuarios')
+      .select('nombre, apellido, correo, telefono, usuario, identificacion')
+      .eq('identificacion', identificacion)
+      .single();
+
+    // Error del lado del servidor
+    if (error) {
+      console.error('Error al consultar usuario:', error.message);
+      return res.status(500).json({
+        status: 500,
+        message: 'Error interno al obtener los datos del usuario.',
+        details: error.message,
+      });
+    }
+
+    // No se encontró el usuario
+    if (!data) {
+      return res.status(200).json({
+        status: 200,
+        message: 'No se encontró ningún usuario con esa identificación.',
+      });
+    }
+
+    // Si todo va bien, devolver datos con éxito
+    return res.status(200).json({
+      status: 200,
+      message: 'Usuario encontrado exitosamente.',
+      data,
+    });
+  } catch (err) {
+    console.error('Error interno del servidor:', err);
+    return res.status(500).json({
+      status: 500,
+      message: 'Error inesperado en el servidor.',
+      details: err.message,
+    });
+  }
+};
 // ====================== CONTROLADOR DELETE USER ============================================
+
 export const deleteUser = async (req, res) => {
   try {
     const { user_id } = req.params; // viene desde la ruta /users/:user_id
 
     if (!user_id) {
-      return res.status(400).json({ message: "Missing user_id" });
+      return res.status(400).json({ message: "Falta el parámetro user_id." });
     }
 
     const { data, error } = await supabase.rpc("sp_users_delete", {
@@ -27,14 +90,32 @@ export const deleteUser = async (req, res) => {
       return res.status(404).json({ message: "Usuario no encontrado o no eliminado" });
     }
 
-    console.log("Usuario eliminado:", data);
+     if (data.deleted === false) {
+      return res.status(200).json({
+        message: "El usuario ya había sido eliminado previamente o no existe.",
+        data,
+      });
+    }
+
+     // Si realmente fue eliminado
+    if (data.deleted === true) {
+      return res.status(200).json({
+        message: "Usuario eliminado exitosamente.",
+        data,
+      });
+    }
+
+   // Caso inesperado (por si el procedimiento devuelve otro formato)
     return res.status(200).json({
-      message: "Usuario eliminado exitosamente",
+      message: "Respuesta inesperada del procedimiento al eliminar usuario.",
       data,
     });
   } catch (err) {
-    console.error("Error en deleteUser:", err);
-    return res.status(500).json({ message: "Internal server error" });
+    console.error("Error interno en deleteUser:", err);
+    return res.status(500).json({
+      message: "Error interno del servidor.",
+      details: err.message,
+    });
   }
 };
 
@@ -45,8 +126,28 @@ export const updateUser = async (req, res) => {
   const { nombre, apellido, correo, usuario, rol } = req.body;
 
   if (!user_id) {
-    return res.status(400).json({ message: "Missing user_id" });
-  }
+      return res.status(200).json({
+        status: 200,
+        message: "Debe proporcionar el parámetro user_id.",
+      });
+    }
+
+     // Validación de parámetros en el body
+    const missingFields = [];
+    if (!nombre) missingFields.push("nombre");
+    if (!apellido) missingFields.push("apellido");
+    if (!correo) missingFields.push("correo");
+    if (!usuario) missingFields.push("usuario");
+    if (!rol) missingFields.push("rol");
+
+    if (missingFields.length > 0) {
+      return res.status(200).json({
+        status: 200,
+        message: `Faltan los siguientes parámetros en el body: ${missingFields.join(
+          ", "
+        )}`,
+      });
+    }
 
   try {
     // Si se pasa un rol (nombre como 'admin' o 'cliente'), buscar su UUID
@@ -60,11 +161,11 @@ export const updateUser = async (req, res) => {
 
       if (rolError) {
         console.error("Error al buscar rol:", rolError);
-        return res.status(500).json({ message: "Error al buscar rol" });
+        return res.status(200).json({ message: "Error al buscar rol" });
       }
 
       if (!rolData || rolData.length === 0) {
-        return res.status(400).json({ message: "Rol no válido" });
+        return res.status(200).json({ message: "Rol no válido" });
       }
 
       rolId = rolData[0].id;
@@ -85,12 +186,36 @@ export const updateUser = async (req, res) => {
       return res.status(500).json({ message: "Error al actualizar usuario" });
     }
 
+     // Usuario no existe
+    if (data && data.updated === false) {
+      return res.status(200).json({
+        status: 200,
+        message: "No se encontró ningún usuario con el ID proporcionado.",
+        data,
+      });
+    }
+
+    // Usuario actualizado exitosamente
+    if (data && data.updated === true) {
+      return res.status(200).json({
+        status: 200,
+        message: "Usuario actualizado exitosamente.",
+        data,
+      });
+    }
+
+    // Respuesta inesperada
     return res.status(200).json({
-      message: "Usuario actualizado exitosamente",
+      status: 200,
+      message: "Respuesta inesperada del procedimiento.",
       data,
     });
   } catch (err) {
-    console.error("Error en updateUser:", err);
-    return res.status(500).json({ message: "Internal server error" });
+    console.error("Error interno en updateUser:", err);
+    return res.status(500).json({
+      status: 500,
+      message: "Error interno del servidor.",
+      details: err.message,
+    });
   }
 };
