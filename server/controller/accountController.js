@@ -1,7 +1,6 @@
 // controllers/accountController.js
 import { supabase } from "../config/supabase.js";
 
-
 /**
  * Obtiene una cuenta (por id) o todas las cuentas del usuario autenticado
  * GET /api/v1/accounts/:id?   (id opcional)
@@ -23,12 +22,14 @@ export const getAccount = async (req, res) => {
     // =============================
     const { data, error } = await supabase.rpc("sp_accounts_get", {
       p_account_id: accountId,
-      p_owner_id: userId
+      p_owner_id: userId,
     });
 
     if (error) {
       console.error("Error al obtener cuenta:", error);
-      return res.status(500).json({ message: "Error al obtener cuenta", details: error.message });
+      return res
+        .status(500)
+        .json({ message: "Error al obtener cuenta", details: error.message });
     }
 
     if (!data || data.length === 0) {
@@ -39,17 +40,16 @@ export const getAccount = async (req, res) => {
     // Respuesta exitosa
     // =============================
     return res.status(200).json({
-      message: accountId ? "Cuenta obtenida exitosamente" : "Cuentas del usuario",
+      message: accountId
+        ? "Cuenta obtenida exitosamente"
+        : "Cuentas del usuario",
       data,
     });
-
   } catch (err) {
     console.error("Error en getAccount:", err);
     return res.status(500).json({ message: "Error interno del servidor" });
   }
 };
-
-
 
 /**
  * Crea una cuenta nueva (POST /api/v1/accounts)
@@ -61,8 +61,8 @@ export const createAccount = async (req, res) => {
       iban,
       saldo_inicial,
       estado_cuenta, // viene como texto ("Activa", "Bloqueada")
-      moneda,        // viene como texto ("Colones", "Dolares")
-      tipo_cuenta,   // viene como texto ("Ahorros", "Corriente")
+      moneda, // viene como texto ("Colones", "Dolares")
+      tipo_cuenta, // viene como texto ("Ahorros", "Corriente")
     } = req.body;
 
     // ============================================
@@ -70,7 +70,7 @@ export const createAccount = async (req, res) => {
     // ============================================
     const usuarioUUID = req.user?.id;
     if (!usuarioUUID) {
-      return res.status(401).json({ message: "Usuario no autenticado." });
+      return res.status(200).json({ message: "Usuario no autenticado." });
     }
 
     // ============================================
@@ -88,7 +88,11 @@ export const createAccount = async (req, res) => {
     }
 
     if (!estadoData || estadoData.length === 0) {
-      return res.status(400).json({ message: "Estado de cuenta no válido" });
+      return res.status(200).json({
+        status: 200,
+        message:
+          "Estado de cuenta no válido. Valores permitidos: 'Activa', 'Bloqueada', etc.",
+      });
     }
 
     const estadoUUID = estadoData[0].id;
@@ -108,7 +112,10 @@ export const createAccount = async (req, res) => {
     }
 
     if (!monedaData || monedaData.length === 0) {
-      return res.status(400).json({ message: "Moneda no válida" });
+      return res.status(200).json({
+        status: 200,
+        message: "Moneda no válida. Valores permitidos: 'Colones', 'Dolares'.",
+      });
     }
 
     const monedaUUID = monedaData[0].id;
@@ -128,7 +135,11 @@ export const createAccount = async (req, res) => {
     }
 
     if (!tipoData || tipoData.length === 0) {
-      return res.status(400).json({ message: "Tipo de cuenta no válido" });
+      return res.status(200).json({
+        status: 200,
+        message:
+          "Tipo de cuenta no válido. Valores permitidos: 'Ahorros', 'Corriente'.",
+      });
     }
 
     const tipoUUID = tipoData[0].id;
@@ -146,9 +157,36 @@ export const createAccount = async (req, res) => {
       p_usuario_id: usuarioUUID,
     });
 
+    const missingFields = [];
+    if (!alias) missingFields.push("alias");
+    if (!iban) missingFields.push("iban");
+    if (!saldo_inicial && saldo_inicial !== 0)
+      missingFields.push("saldo_inicial");
+    if (!estado_cuenta) missingFields.push("estado_cuenta");
+    if (!moneda) missingFields.push("moneda");
+    if (!tipo_cuenta) missingFields.push("tipo_cuenta");
+
+    if (missingFields.length > 0) {
+      return res.status(200).json({
+        status: 200,
+        message: `Faltan los siguientes parámetros: ${missingFields.join(
+          ", "
+        )}`,
+      });
+    }
+    if (isNaN(saldo_inicial) || Number(saldo_inicial) < 0) {
+      return res.status(200).json({
+        status: 200,
+        message:
+          "Saldo inicial inválido. Debe ser un número mayor o igual a 0.",
+      });
+    }
+
     if (error) {
       console.error("Error al crear cuenta:", error);
-      return res.status(500).json({ message: "Error al crear cuenta", details: error.message });
+      return res
+        .status(500)
+        .json({ message: "Error al crear cuenta", details: error.message });
     }
 
     res.status(201).json({
@@ -160,26 +198,28 @@ export const createAccount = async (req, res) => {
     res.status(500).json({ message: "Error interno del servidor" });
   }
 };
-
-
-/**
- * Actualiza el estado de una cuenta
- * PUT /api/v1/accounts/status
- */
 export const updateAccountStatus = async (req, res) => {
   try {
-    const { iban, nuevo_estado } = req.body; // Se pasa el IBAN en el body
+    const { iban, nuevo_estado } = req.body;
 
-    // Validaciones
-    if (!iban) {
-      return res.status(400).json({ message: "Se requiere el IBAN de la cuenta." });
-    }
-    if (!nuevo_estado) {
-      return res.status(400).json({ message: "Se requiere el nuevo estado." });
+    // ================================
+    // 1. Validación de parámetros
+    // ================================
+    const missingFields = [];
+    if (!iban) missingFields.push("iban");
+    if (!nuevo_estado) missingFields.push("nuevo_estado");
+
+    if (missingFields.length > 0) {
+      return res.status(200).json({
+        status: 200,
+        message: `Faltan los siguientes parámetros en el body: ${missingFields.join(
+          ", "
+        )}`,
+      });
     }
 
     // ================================
-    // 1.Usuario autenticado -> se obtiene del token y no se pasa por body
+    // 2. Usuario autenticado
     // ================================
     const usuarioUUID = req.user?.id;
     if (!usuarioUUID) {
@@ -187,45 +227,63 @@ export const updateAccountStatus = async (req, res) => {
     }
 
     // ================================
-    // 2.Busca el ID de la cuenta a partir del IBAN
+    // 3. Buscar cuenta por IBAN
     // ================================
     const { data: cuentaData, error: cuentaError } = await supabase
       .from("cuenta")
       .select("id, iban")
       .ilike("iban", iban)
       .limit(1)
-      .single();
+      .maybeSingle(); // evita error si no existe
 
-    if (cuentaError || !cuentaData) {
-      console.error("Error al buscar cuenta:", cuentaError);
-      return res.status(404).json({ message: "Cuenta no encontrada con el IBAN proporcionado." });
+    if (cuentaError) {
+      console.error("Error al buscar cuenta:", cuentaError.message);
+      return res.status(500).json({
+        status: 500,
+        message: "Error al consultar la cuenta.",
+        details: cuentaError.message,
+      });
+    }
+
+    if (!cuentaData) {
+      return res.status(200).json({
+        status: 200,
+        message: "No se encontró ninguna cuenta con el IBAN proporcionado.",
+      });
     }
 
     const cuentaUUID = cuentaData.id;
 
     // ================================
-    // 3.Busca el UUID del nuevo estado, asi encuentra el UUID correspondiente
+    // 4. Buscar UUID del nuevo estado
     // ================================
     const { data: estadoData, error: estadoError } = await supabase
       .from("estado_cuenta")
       .select("id, nombre")
       .ilike("nombre", nuevo_estado)
       .limit(1)
-      .single();
+      .maybeSingle(); // evita error si no existe
 
     if (estadoError) {
-      console.error("Error al buscar estado_cuenta:", estadoError);
-      return res.status(500).json({ message: "Error al buscar estado_cuenta" });
+      console.error("Error al buscar estado_cuenta:", estadoError.message);
+      return res.status(500).json({
+        status: 500,
+        message: "Error al buscar estado de cuenta.",
+        details: estadoError.message,
+      });
     }
 
     if (!estadoData) {
-      return res.status(400).json({ message: "Estado de cuenta no válido." });
+      return res.status(200).json({
+        status: 200,
+        message: `Estado de cuenta no válido. Valores permitidos: "Activa", "Bloqueada", etc.`,
+      });
     }
 
     const nuevoEstadoUUID = estadoData.id;
 
     // ================================
-    // 4.Llama al Stored Procedure
+    // 5. Llamar al procedimiento almacenado
     // ================================
     const { data, error } = await supabase.rpc("sp_accounts_set_status", {
       p_account_id: cuentaUUID,
@@ -233,26 +291,40 @@ export const updateAccountStatus = async (req, res) => {
     });
 
     if (error) {
-      console.error("Error al actualizar estado:", error);
+      console.error("Error al actualizar estado:", error.message);
       return res.status(500).json({
-        message: "Error al actualizar el estado de la cuenta",
+        status: 500,
+        message: "Error al actualizar el estado de la cuenta.",
         details: error.message,
       });
     }
 
     // ================================
-    // 5.Respuesta exitosa
+    // 6. Validación del resultado
     // ================================
+    if (data && data.updated === false) {
+      return res.status(200).json({
+        status: 200,
+        message:
+          "No se pudo actualizar el estado de la cuenta (cuenta inexistente o sin cambios).",
+        data,
+      });
+    }
+
     return res.status(200).json({
-      message: "Estado de la cuenta actualizado correctamente",
+      status: 200,
+      message: "Estado de la cuenta actualizado correctamente.",
       data,
     });
   } catch (err) {
     console.error("Error en updateAccountStatus:", err);
-    return res.status(500).json({ message: "Error interno del servidor" });
+    return res.status(500).json({
+      status: 500,
+      message: "Error interno del servidor.",
+      details: err.message,
+    });
   }
 };
-
 
 /**
  * Lista los movimientos de una cuenta
@@ -278,12 +350,16 @@ export const getAccountMovements = async (req, res) => {
       .single();
 
     if (cuentaError || !cuentaData) {
-      return res.status(404).json({ message: "Cuenta no encontrada con el IBAN proporcionado." });
+      return res
+        .status(404)
+        .json({ message: "Cuenta no encontrada con el IBAN proporcionado." });
     }
 
     // Valida que la cuenta pertenezca al usuario autenticado
     if (cuentaData.usuario_id !== usuarioUUID) {
-      return res.status(403).json({ message: "No tienes permiso para acceder a esta cuenta." });
+      return res
+        .status(403)
+        .json({ message: "No tienes permiso para acceder a esta cuenta." });
     }
 
     const cuentaUUID = cuentaData.id;
