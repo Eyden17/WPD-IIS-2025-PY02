@@ -32,17 +32,7 @@ export const getUserByIdentificacion = async (req, res) => {
       .from('usuarios')
       .select('nombre, apellido, correo, telefono, usuario, identificacion')
       .eq('identificacion', identificacion)
-      .single();
-
-    // Error del lado del servidor
-    if (error) {
-      console.error('Error al consultar usuario:', error.message);
-      return res.status(500).json({
-        status: 500,
-        message: 'Error interno al obtener los datos del usuario.',
-        details: error.message,
-      });
-    }
+      .maybeSingle();
 
     // No se encontró el usuario
     if (!data) {
