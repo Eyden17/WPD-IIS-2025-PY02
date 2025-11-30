@@ -92,62 +92,85 @@ export const login = async (req, res) => {
   const { user, password } = req.body;
 
   if (!user || !password) {
-    return res.status(400).json({ message: "Missing user or password" });
+    return res.status(200).json({
+      success: false,
+      code: "MISSING_FIELDS",
+      message: "Debe ingresar usuario y contraseña."
+    });
   }
 
   try {
-    // Llama al stored procedure de Supabase
+    // Llama al SP
     const { data, error } = await supabase.rpc(
       "sp_auth_user_get_by_username_or_email",
       { p_username_or_email: user }
     );
 
-    console.log(" Datos devueltos por Supabase:", data);
-
+    // Error del SP → 500 real
     if (error) {
       console.error("Error en SP:", error);
-      return res.status(500).json({ message: "Database error" });
+      return res.status(500).json({
+        success: false,
+        code: "DB_ERROR",
+        message: "Error interno en la base de datos."
+      });
     }
 
+    // Usuario NO encontrado
     if (!data || data.length === 0) {
-      return res.status(401).json({ message: "Invalid user or password" });
+      return res.status(200).json({
+        success: false,
+        code: "USER_NOT_FOUND",
+        message: "El usuario o correo no existe."
+      });
     }
 
     const userData = Array.isArray(data) ? data[0] : data;
 
     if (!userData.contrasena_hash) {
-      console.error("El campo contrasena_hash no existe o viene nulo:", userData);
+      console.error("contrasena_hash nulo:", userData);
       return res.status(500).json({
-        message: "User record incomplete (missing contrasena_hash)",
+        success: false,
+        code: "MISSING_HASH",
+        message: "El usuario no tiene contraseña registrada."
       });
     }
 
-    // 🔑 Verifica la contraseña
+    // Verificar contraseña
     const cleanHash = userData.contrasena_hash.trim();
     const passwordMatch = await bcrypt.compare(password, cleanHash);
 
     if (!passwordMatch) {
-      return res.status(401).json({ message: "Invalid user or password" });
+      return res.status(200).json({
+        success: false,
+        code: "INVALID_PASSWORD",
+        message: "La contraseña es incorrecta."
+      });
     }
 
-    // 🪪 Crea el payload con ID, username y rol
+    // Login OK
     const payload = {
       id: userData.user_id,
       username: userData.usuario || user,
-      role: userData.rol || "unknown", // rol 
+      role: userData.rol || "unknown",
     };
 
-    // token (expira en 1 hora)
     const token = jwt.sign(payload, SECRET, { expiresIn: "1h" });
 
-    //  Respuesta exitosa
     return res.status(200).json({
-      message: "Login successful",
+      success: true,
+      code: "LOGIN_SUCCESS",
+      message: "Inicio de sesión exitoso.",
       token,
       user: payload,
     });
+
   } catch (err) {
     console.error("Error en login:", err);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({
+      success: false,
+      code: "SERVER_ERROR",
+      message: "Error interno del servidor."
+    });
   }
 };
