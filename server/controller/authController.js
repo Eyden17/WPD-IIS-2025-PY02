@@ -105,7 +105,6 @@ export const login = async (req, res) => {
       "sp_auth_user_get_by_username_or_email",
       { p_username_or_email: user }
     );
-        console.log("SP RESULT:", data);
 
     // Error del SP → 500 real
     if (error) {
@@ -117,20 +116,38 @@ export const login = async (req, res) => {
       });
     }
 
-   
- // Usuario NO encontrado. Ahora si llega null no se cae a 500 ERROR FATAL
-if (!data || !data.id) {
+    // Usuario NO encontrado
+    if (!data || data.length === 0) {
       return res.status(200).json({
         success: false,
         code: "USER_NOT_FOUND",
+        message: "El usuario o correo no existe."
+      });
+    }
+
+    const userData = Array.isArray(data) ? data[0] : data;
+
+    if (!userData.contrasena_hash) {
+      console.error("contrasena_hash nulo:", userData);
+      return res.status(500).json({
+        success: false,
+        code: "MISSING_HASH",
         message: "Credenciales incorrectas."
       });
     }
 
+    // Verificar contraseña
+    const cleanHash = userData.contrasena_hash.trim();
+    const passwordMatch = await bcrypt.compare(password, cleanHash);
 
-    const userData = Array.isArray(data) ? data[0] : data;
+    if (!passwordMatch) {
+      return res.status(200).json({
+        success: false,
+        code: "INVALID_PASSWORD",
+        message: "La contraseña es incorrecta."
+      });
+    }
 
-  
     // Login OK
     const payload = {
       id: userData.user_id,
