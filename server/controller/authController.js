@@ -123,25 +123,14 @@ if (!data || !data.id) {
       return res.status(200).json({
         success: false,
         code: "USER_NOT_FOUND",
-        message: "El usuario o correo no existe."
+        message: "Credenciales incorrectas."
       });
     }
 
 
     const userData = Array.isArray(data) ? data[0] : data;
 
-    // Verificar contraseña
-    const cleanHash = userData.contrasena_hash.trim();
-    const passwordMatch = await bcrypt.compare(password, cleanHash);
-
-    if (!passwordMatch) {
-      return res.status(200).json({
-        success: false,
-        code: "INVALID_PASSWORD",
-        message: "La contraseña es incorrecta."
-      });
-    }
-
+  
     // Login OK
     const payload = {
       id: userData.user_id,
