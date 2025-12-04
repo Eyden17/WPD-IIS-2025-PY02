@@ -34,8 +34,8 @@ export const validateBankAccount = async (req, res, next) => {
     // 3) Normalizar IBAN: sin espacios y en mayúsculas
     const normalizedIban = iban.replace(/\s+/g, "").toUpperCase();
 
-    // 4) Validar patrón CR01B03 + 14 dígitos (ajusta {14} si tu formato es otro)
-    const ibanRegex = /^CR01B03[0-9]{14}$/;
+    // 4) Validar patrón CR01B03 + 12 dígitos
+    const ibanRegex = /^CR01B03[0-9]{12}$/;
 
     if (!ibanRegex.test(normalizedIban)) {
       const payload = {
