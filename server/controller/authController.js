@@ -119,13 +119,13 @@ export const login = async (req, res) => {
 
    
  // Usuario NO encontrado. Ahora si llega null no se cae a 500 ERROR FATAL
-if (!data || (Array.isArray(data) && data.length === 0)) {
-  return res.status(200).json({
-    success: false,
-    code: "USER_NOT_FOUND",
-    message: "El usuario o correo no existe."
-  });
-}
+if (!data || !data.id) {
+      return res.status(200).json({
+        success: false,
+        code: "USER_NOT_FOUND",
+        message: "El usuario o correo no existe."
+      });
+    }
 
 
     const userData = Array.isArray(data) ? data[0] : data;
