@@ -393,3 +393,83 @@ export const getAccountMovements = async (req, res) => {
     return res.status(500).json({ message: "Error interno del servidor" });
   }
 };
+
+// ====================== CONTROLADOR VALIDAR CUENTA BANCARIA ============================================
+
+const BANK_CODES = ["B01","B02","B03","B04","B05","B06","B07","B08"];
+
+export const validateAccount = async (req, res) => {
+  try {
+    const { iban } = req.body;
+
+    if (!iban) {
+      return res.status(400).json({
+        success: false,
+        message: "El IBAN es obligatorio."
+      });
+    }
+
+    // 1. Valida estructura general del IBAN
+    const ibanRegex = /^CR01B(0[1-8])\d{12}$/;
+
+    if (!ibanRegex.test(iban)) {
+      return res.status(200).json({
+        success: false,
+        message: "El IBAN no cumple el formato estándar del proyecto."
+      });
+    }
+
+    // 2. Extrae el código del banco ( B07, B03, B01, etc...)
+    const bankCode = iban.substring(4, 7);
+
+    // 3. Valida que el banco esté en la tabla oficial
+    if (!BANK_CODES.includes(bankCode)) {
+      return res.status(200).json({
+        success: false,
+        message: `Código de banco inválido: ${bankCode}.`
+      });
+    }
+
+    // 4. Llama al Stored Procedure en Supabase
+    const { data, error } = await supabase.rpc(
+      "sp_bank_validate_account",
+      { p_iban: iban }
+    );
+
+    if (error) {
+      console.error("SP error:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Error interno al validar la cuenta."
+      });
+    }
+
+    // 5. Si la cuenta no existe
+    if (!data || !data.exists) {
+      return res.status(404).json({
+        success: true,
+        message: "La cuenta no existe.",
+        data: { exists: false }
+      });
+    }
+
+    // 6. Respuesta estándar
+    return res.status(200).json({
+      success: true,
+      message: "Validación de cuenta completada",
+      data: {
+        exists: true,
+        info: data.info
+      },
+      path: "/api/v1/bank/validate-account",
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (err) {
+    console.error("Controller error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Error inesperado."
+    });
+  }
+};

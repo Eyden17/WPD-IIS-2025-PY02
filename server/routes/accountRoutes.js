@@ -1,6 +1,6 @@
 // routes/accountRoute.js
 import express from "express";
-import {createAccount, getAccount, updateAccountStatus, getAccountMovements  } from "../controller/accountController.js";
+import {createAccount, getAccount, updateAccountStatus, getAccountMovements, validateAccount } from "../controller/accountController.js";
 import { authMiddleware, roleMiddleware } from "../middleware/authMiddleware.js";
 
 
@@ -47,5 +47,14 @@ router.get(
   authMiddleware,
   getAccountMovements
 );
+
+// Validar una cuenta por su IBAN
+router.get(
+  "/:iban/validate",
+  authMiddleware,
+  roleMiddleware(["cliente", "admin"]), //Tanto el admin como el cliente podran gestionar el crear
+  validateAccount
+);
+
 
 export default router;
