@@ -105,6 +105,7 @@ export const login = async (req, res) => {
       "sp_auth_user_get_by_username_or_email",
       { p_username_or_email: user }
     );
+        console.log("SP RESULT:", data);
 
     // Error del SP → 500 real
     if (error) {
