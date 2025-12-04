@@ -4,7 +4,7 @@ import { supabase } from "../config/supabase.js";
 
 const SECRET = process.env.JWT_SECRET;
 
-// ====================== CONTROLADOR CREATE_USER ============================================
+// ====================== CONTROLADOR CREATE_USER ===========================================
 
 export const register = async (req, res) => {
   const {
@@ -126,15 +126,6 @@ export const login = async (req, res) => {
     }
 
     const userData = Array.isArray(data) ? data[0] : data;
-
-    if (!userData.contrasena_hash) {
-      console.error("contrasena_hash nulo:", userData);
-      return res.status(500).json({
-        success: false,
-        code: "MISSING_HASH",
-        message: "El usuario no tiene contraseña registrada."
-      });
-    }
 
     // Verificar contraseña
     const cleanHash = userData.contrasena_hash.trim();
