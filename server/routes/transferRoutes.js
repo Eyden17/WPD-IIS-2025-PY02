@@ -1,5 +1,5 @@
 import express from "express";
-import { internalTransfer } from "../controller/transferController.js";
+import { internalTransfer, externalTransfer } from "../controller/transferController.js";
 import { authMiddleware, roleMiddleware } from "../middleware/authMiddleware.js";
 import { errorHandler } from "../middleware/errorMiddleware.js";
 
@@ -11,6 +11,14 @@ router.post(
   authMiddleware,
   roleMiddleware(["cliente", "admin"]),
   internalTransfer
+);
+
+// POST /api/v1/transfers/external
+router.post(
+  "/external",
+  authMiddleware,
+  roleMiddleware(["cliente", "admin"]),
+  externalTransfer
 );
 
 router.use(errorHandler);
