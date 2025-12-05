@@ -152,6 +152,7 @@ export const getCard = async (req, res) => {
       fecha_expiracion: card.fecha_expiracion,
       limite_credito: card.limite_credito,
       saldo_actual: card.saldo_actual,
+      titular: `${card.usuario_nombre || ""} ${card.usuario_apellido || ""}`.trim(),
       tipo_tarjeta: {
         id: card.tipo_id,
         nombre: card.tipo_nombre,
