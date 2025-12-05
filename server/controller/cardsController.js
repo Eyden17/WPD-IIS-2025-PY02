@@ -84,6 +84,7 @@ export const listCards = async (req, res) => {
     }
     const formattedCards = data.map((card) => ({
       id: card.id,
+      titular: card.usuario_nombre + " " + card.usuario_apellido,
       numero_enmascarado: card.numero_enmascarado,
       fecha_expiracion: card.fecha_expiracion,
       limite_credito: card.limite_credito,
