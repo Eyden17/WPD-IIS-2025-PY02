@@ -116,10 +116,10 @@ export const externalTransfer = async (req, res, next) => {
       throw err;
     }
 
-    // Validar cuenta origen
+    // Valida cuenta origen
     const { data: fromAcc, error: fromErr } = await supabase
       .from("cuenta")
-      .select("id, usuario_id, moneda, saldo")
+      .select("id, usuario_id, moneda, saldo, iban")   // <-- IBAN 
       .eq("id", from_account_id)
       .single();
 
@@ -154,19 +154,13 @@ export const externalTransfer = async (req, res, next) => {
       throw err;
     }
 
-    // ----------------------------------------------------
-    //  EL MISMO SP sp_transfer_create_internal
-    // p_to_account_id = NULL POR QUE NO ESTA REGISTRADO EN NUESTRA DB
-    // p_to_iban = to_iban -> El iban que se agrega CR01B09.....
-    // ----------------------------------------------------
-    const { data, error } = await supabase.rpc("sp_transfer_create_internal", {
-      p_from_account_id: from_account_id,
-      p_to_account_id: null,
+    // Crear transferencia externa
+    const { data, error } = await supabase.rpc("sp_transfer_create", {
+      p_from_iban: fromAcc.iban,             
       p_to_iban: to_iban,
       p_amount: monto,
-      p_currency: currency,
-      p_description: description || null,
-      p_user_id: userId
+      p_currency_iso: currency,
+      p_description: description || null
     });
 
     if (error) {
