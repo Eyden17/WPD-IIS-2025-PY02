@@ -118,6 +118,7 @@ export const listCards = async (req, res) => {
 export const getCard = async (req, res) => {
   try {
     const userId = req.user?.id;
+    const role = req.user?.role;
     const { cardId } = req.params;
 
     if (!userId) {
@@ -126,6 +127,8 @@ export const getCard = async (req, res) => {
     if (!cardId) {
       return res.status(400).json({ message: "cardId requerido." });
     }
+
+    const ownerId = role === "admin" ? null : userId;
 
     const { data, error } = await supabase.rpc("sp_cards_get", {
       p_owner_id: userId,
@@ -182,6 +185,7 @@ export const getCard = async (req, res) => {
 export const listCardMovements = async (req, res) => {
   try {
     const userId = req.user?.id;
+    const role = req.user?.role;
     const { cardId } = req.params;
 
     if (!userId) {
@@ -189,6 +193,30 @@ export const listCardMovements = async (req, res) => {
     }
     if (!cardId) {
       return res.status(400).json({ message: "cardId requerido." });
+    }
+
+    const ownerId = role === "admin" ? null : userId;
+
+    const { data: cardData, error: cardErr } = await supabase.rpc(
+      "sp_cards_get",
+      {
+        p_owner_id: ownerId,
+        p_card_id: cardId,
+      }
+    );
+
+    if (cardErr) {
+      console.error("Error al verificar tarjeta:", cardErr);
+      return res.status(500).json({
+        message: "Error al verificar tarjeta",
+        details: cardErr.message,
+      });
+    }
+
+    if (!cardData || cardData.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "Tarjeta no encontrada o no autorizada." });
     }
 
     const { from_date, to_date, page = 1, page_size = 10, q, type } = req.query;
@@ -210,6 +238,7 @@ export const listCardMovements = async (req, res) => {
         details: error.message,
       });
     }
+
     const formatted = {
       movimientos: data?.items ?? [],
       total: data?.total ?? 0,
@@ -217,7 +246,12 @@ export const listCardMovements = async (req, res) => {
       page_size: data?.page_size ?? 10,
     };
 
-    return successResponse(req, res, formatted, "Movimientos de tarjeta obtenidos correctamente");
+    return successResponse(
+      req,
+      res,
+      formatted,
+      "Movimientos de tarjeta obtenidos correctamente"
+    );
   } catch (err) {
     console.error("listCardMovements error:", err);
     return res.status(500).json({
@@ -226,6 +260,7 @@ export const listCardMovements = async (req, res) => {
     });
   }
 };
+
 
 /**
  * POST /api/v1/cards/:cardId/movements
