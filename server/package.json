@@ -16,7 +16,8 @@
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "js2xmlparser": "^5.0.0",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@supabase/supabase-js": "^2.80.0",

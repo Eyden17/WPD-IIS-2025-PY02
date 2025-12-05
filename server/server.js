@@ -13,6 +13,9 @@ import auditRoutes from "./routes/auditRoutes.js";
 
 import { errorHandler } from "./middleware/errorMiddleware.js";
 
+// **Importa función del socket**
+import { connectBancoCentral } from "./sockets/bancoCentralSocket.js";
+
 dotenv.config();
 
 const app = express();
@@ -20,25 +23,24 @@ const app = express();
 // CORS configuration
 app.use(
   cors({
-    origin: "*",  // Permite todos los orígenes
+    origin: "*",
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], 
     allowedHeaders: ["Content-Type", "Authorization", "x-api-key"],
-    credentials: true // Agregué credentials
+    credentials: true
   })
 );
 
 app.use(express.json());
 
 // Prefijo base versionado
-app.use("/api/v1/auth", authRoutes);   // login, register
-app.use("/api/v1/users", userRoutes);  // rutas de usuario (delete, update, get, etc.)
-app.use("/api/v1/accounts", accountRoutes); // rutas de cuenta (create, get by id, etc.)
-app.use("/api/v1/otp", otpRoutes); // ruta de los otp generados para password reset o create
-app.use("/api/v1/transfers", transferRoutes); // rutas de transferencias (internal)
-app.use("/api/v1/cards", cardsRoutes); // rutas de tarjetas (create, list, get, movements,)
-app.use("/api/v1/bank", bankRoutes); // rutas bancarias (validate account)
-app.use("/api/v1/audit", auditRoutes); // rutas de auditoria (list user audit)
-
+app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/users", userRoutes);
+app.use("/api/v1/accounts", accountRoutes);
+app.use("/api/v1/otp", otpRoutes);
+app.use("/api/v1/transfers", transferRoutes);
+app.use("/api/v1/cards", cardsRoutes);
+app.use("/api/v1/bank", bankRoutes);
+app.use("/api/v1/audit", auditRoutes);
 
 // Manejo centralizado de errores
 app.use(errorHandler);
@@ -46,8 +48,11 @@ app.use(errorHandler);
 // Levantar servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(` Servidor corriendo en puerto ${PORT}`);
-  console.log(` CORS habilitado para todos los orígenes`);
+  console.log(`Servidor corriendo en puerto ${PORT}`);
+  console.log(`CORS habilitado para todos los orígenes`);
+
+  // **Conecta al Banco Central**
+  connectBancoCentral();
 });
 
 export default app;
