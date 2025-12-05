@@ -337,6 +337,7 @@ export const getAccountMovements = async (req, res) => {
 
     // 1.Usuario autenticado (obligatorio)
     const usuarioUUID = req.user?.id;
+    const usuarioRol = req.user?.role;
     if (!usuarioUUID) {
       return res.status(401).json({ message: "Usuario no autenticado." });
     }
@@ -356,7 +357,7 @@ export const getAccountMovements = async (req, res) => {
     }
 
     // Valida que la cuenta pertenezca al usuario autenticado
-    if (cuentaData.usuario_id !== usuarioUUID) {
+    if (cuentaData.usuario_id !== usuarioUUID && usuarioRol !== "admin") {
       return res
         .status(403)
         .json({ message: "No tienes permiso para acceder a esta cuenta." });
